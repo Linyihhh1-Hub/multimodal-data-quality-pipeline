@@ -1,0 +1,16 @@
+image:
+  min_width: 224
+  min_height: 224
+  min_blur_variance: 20.0
+  min_brightness: 25.0
+  max_brightness: 235.0
+  max_aspect_ratio: 3.5
+
+text:
+  min_words: 3
+  max_words: 80
+  sensitive_words: []
+
+score:
+  accept_threshold: 0.93
+  review_threshold: 0.55

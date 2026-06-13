@@ -67,6 +67,16 @@ python scripts/prepare_coco_subset.py `
 .\scripts\run_local_pipeline.ps1 -Manifest data/raw/manifest.jsonl -RawDataDir data/raw -Version v1.0
 ```
 
+使用规则配置运行严格版 v1.1：
+
+```powershell
+.\scripts\run_local_pipeline.ps1 `
+  -Manifest data/raw/manifest.jsonl `
+  -RawDataDir data/raw `
+  -Version v1.1 `
+  -QualityRules configs/quality_rules_v1.1_strict.yaml
+```
+
 启用 CLIP：
 
 ```powershell
@@ -106,6 +116,27 @@ python scripts/compare_versions.py `
 ```
 
 输出字段包括样本新增/移除数量、状态变化数量、通过率变化和平均质量分变化，用于面试中解释“规则迭代”和“数据闭环”。
+
+当前 demo 的 v1.1 strict 示例会把接受阈值从默认 `0.75` 提高到 `0.93`，产生可解释变化：
+
+```text
+old_acceptance_rate: 0.50
+new_acceptance_rate: 0.25
+status_changed_samples: 1
+```
+
+## 质量分析报告
+
+从元数据生成 Markdown 报告：
+
+```powershell
+python scripts/generate_quality_report.py `
+  --metadata data/processed/processed_metadata_v1.1.parquet `
+  --version v1.1 `
+  --output data/processed/quality_report_v1.1.md
+```
+
+报告包含总样本量、通过率、平均图文相似度、平均质量分、过滤原因分布和最低质量样本，可直接用于 README 展示或面试讲解。
 
 如果本地没有 Parquet engine，元数据会自动降级输出为 CSV，保证 Pipeline 不被环境阻塞。
 

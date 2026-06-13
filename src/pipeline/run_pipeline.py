@@ -9,6 +9,7 @@ from src.ingestion.manifest_builder import load_manifest
 from src.models.clip_scorer import ClipScorer
 from src.pipeline.build_dataset import assign_splits
 from src.pipeline.export_sft import export_caption_jsonl, export_sft_jsonl, export_status_jsonl
+from src.pipeline.quality_rules import QualityRules, load_quality_rules
 from src.quality.image_quality import assess_image
 from src.quality.quality_scorer import combine_quality
 from src.quality.text_quality import assess_caption
@@ -45,18 +46,23 @@ def run_pipeline(
     export_dir: str | Path,
     version: str = "v1.0",
     use_clip: bool = True,
+    quality_rules_path: str | Path | None = None,
 ) -> PipelineResult:
     raw_dir = Path(raw_data_dir)
     processed = Path(processed_dir)
     exports = Path(export_dir)
     df = load_manifest(manifest_path)
     scorer = ClipScorer(use_clip=use_clip)
+    rules = load_quality_rules(quality_rules_path)
 
     records: list[dict] = []
     for _, row in df.iterrows():
         absolute_image_path = _resolve_image_path(raw_dir, str(row["image_path"]))
-        image_result = assess_image(absolute_image_path)
-        text_result = assess_caption(row["caption"])
+        image_result = assess_image(absolute_image_path, **rules.image)
+        text_kwargs = dict(rules.text)
+        if isinstance(text_kwargs.get("sensitive_words"), list):
+            text_kwargs["sensitive_words"] = set(text_kwargs["sensitive_words"])
+        text_result = assess_caption(row["caption"], **text_kwargs)
         similarity = scorer.score(absolute_image_path, row["caption"])
         combined = combine_quality(
             image_status=image_result["filter_status"],
@@ -66,6 +72,8 @@ def run_pipeline(
             image_quality_score=image_result["image_quality_score"],
             text_quality_score=text_result["text_quality_score"],
             image_text_similarity=similarity,
+            accept_threshold=rules.score.get("accept_threshold", 0.75),
+            review_threshold=rules.score.get("review_threshold", 0.55),
         )
         records.append(
             {
@@ -130,6 +138,7 @@ def main() -> None:
     parser.add_argument("--export-dir", default="data/exports")
     parser.add_argument("--version", default="v1.0")
     parser.add_argument("--no-clip", action="store_true")
+    parser.add_argument("--quality-rules", default=None)
     args = parser.parse_args()
 
     result = run_pipeline(
@@ -139,6 +148,7 @@ def main() -> None:
         export_dir=args.export_dir,
         version=args.version,
         use_clip=not args.no_clip,
+        quality_rules_path=args.quality_rules,
     )
     print(result)
 

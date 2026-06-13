@@ -2,6 +2,7 @@ param(
     [string]$Manifest = "data/raw/manifest.jsonl",
     [string]$RawDataDir = "data/raw",
     [string]$Version = "v1.0",
+    [string]$QualityRules = "",
     [switch]$UseClip
 )
 
@@ -18,6 +19,10 @@ $argsList = @(
 
 if (-not $UseClip) {
     $argsList += "--no-clip"
+}
+
+if ($QualityRules -ne "") {
+    $argsList += @("--quality-rules", $QualityRules)
 }
 
 python $argsList
