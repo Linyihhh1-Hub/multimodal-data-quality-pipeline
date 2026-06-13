@@ -51,9 +51,23 @@ pip install -r requirements.txt
 python scripts/create_demo_data.py
 ```
 
+检查当前 manifest 是否可以进入 Pipeline：
+
+```powershell
+python scripts/dataset_doctor.py `
+  --manifest data/raw/manifest.jsonl `
+  --raw-data-dir data/raw `
+  --output data/processed/dataset_doctor.json
+```
+
 从本地 COCO Captions 构建真实子集：
 
 ```powershell
+python scripts/dataset_doctor.py `
+  --coco-annotations D:\datasets\coco\annotations\captions_val2017.json `
+  --coco-image-dir D:\datasets\coco\val2017 `
+  --output data/processed/coco_doctor.json
+
 python scripts/prepare_coco_subset.py `
   --annotations D:\datasets\coco\annotations\captions_val2017.json `
   --source-image-dir D:\datasets\coco\val2017 `
@@ -137,6 +151,18 @@ python scripts/generate_quality_report.py `
 ```
 
 报告包含总样本量、通过率、平均图文相似度、平均质量分、过滤原因分布和最低质量样本，可直接用于 README 展示或面试讲解。
+
+生成静态 HTML 样本画廊：
+
+```powershell
+python scripts/generate_sample_gallery.py `
+  --metadata data/processed/processed_metadata_v1.1.parquet `
+  --output data/processed/sample_gallery_v1.1.html `
+  --title "V1.1 Strict Quality Sample Gallery" `
+  --limit 60
+```
+
+画廊会把图片以内嵌 base64 的方式写入 HTML，适合直接打开、截图并放进项目 README。
 
 如果本地没有 Parquet engine，元数据会自动降级输出为 CSV，保证 Pipeline 不被环境阻塞。
 
