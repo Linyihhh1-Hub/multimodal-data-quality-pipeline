@@ -1,82 +1,171 @@
 # 图文多模态训练数据处理与质量评估 Pipeline
 
-面向视觉语言模型后训练数据生产场景，本项目把原始图文样本加工成可用于训练、微调和评测的数据集，并沉淀自动质检、模型辅助评分、样本分层导出和质量看板。
+面向视觉语言模型（VLM）训练数据生产场景，本项目实现了一个离线图文多模态数据治理 Pipeline：从 COCO Captions 原始数据接入开始，完成图片/文本基础质检、CLIP 图文一致性评分、近重复检测、样本分层过滤、训练/评测/SFT JSONL 导出，以及质量报告、样本画廊和版本对比。
 
-第一版 MVP 聚焦图文数据，不做完整视频链路，不强依赖在线大模型生成 caption。CLIP 相似度模块支持可选启用；离线环境下会自动使用确定性启发式 scorer，保证 Pipeline 可以本地跑通。
+这个项目的重点不是训练大模型，也不是普通 OpenCV 图像识别，而是解决 **VLM 训练前的数据生产和质量治理问题**。
 
-## 项目展示
+## 项目亮点
 
-- 真实 COCO/CLIP 指标汇总：[docs/project_showcase.md](docs/project_showcase.md)
-- 面试讲稿与简历 bullet：[docs/interview_playbook.md](docs/interview_playbook.md)
-- 本地样本画廊：`data/processed_clip_coco/sample_gallery_coco_clip_v1.1.html`
-- 本地质量报告：`data/processed_clip_coco/quality_report_coco_clip_v1.1.md`
+- 真实接入 COCO val2017，处理 5000 条图文 caption 样本。
+- 支持规则质检和 HuggingFace CLIP 模型辅助评分两种模式。
+- 构建 `accepted / rejected / review` 样本分层机制。
+- 输出训练集、评测集、多轮对话 SFT JSONL。
+- 记录 `filter_reason`、`final_quality_score`、`perceptual_hash`、`duplicate_group_size` 等质量元数据。
+- 支持 v1.0/v1.1 规则迭代和版本质量对比。
+- 生成 Markdown 质量报告、静态 HTML 样本画廊、Streamlit 看板和 caption 标签分布。
+
+## 真实运行结果
+
+本地已下载 COCO val2017，并在 5000 条 captions 上跑通完整流程。
+
+| 指标 | 数值 |
+| --- | ---: |
+| COCO caption 样本数 | 5000 |
+| Heuristic accepted | 4960 |
+| Heuristic rejected | 40 |
+| 近重复图片样本 | 3984 |
+| CLIP v1.0 accepted | 4960 |
+| CLIP v1.0 rejected | 40 |
+| CLIP v1.1 accepted | 1283 |
+| CLIP v1.1 review | 3677 |
+| v1.0 -> v1.1 状态变化样本 | 3677 |
+
+更多展示指标见：[docs/project_showcase.md](docs/project_showcase.md)
+
+面试讲稿与简历 bullet 见：[docs/interview_playbook.md](docs/interview_playbook.md)
 
 ## 架构
 
 ```mermaid
 flowchart LR
-  A["COCO/Flickr manifest"] --> B["基础质检"]
-  B --> C["图文一致性评分"]
-  C --> D["综合质量评分"]
-  D --> E["accepted/rejected/review"]
-  E --> F["Parquet/CSV 元数据"]
-  E --> G["JSONL 训练/评测导出"]
-  F --> H["Streamlit 质量看板"]
+  A["COCO Captions / Manifest"] --> B["数据就绪检查"]
+  B --> C["图片基础质检"]
+  B --> D["Caption 文本质检"]
+  C --> E["近重复检测"]
+  D --> F["CLIP 图文一致性评分"]
+  E --> G["综合质量评分"]
+  F --> G
+  G --> H["accepted / rejected / review"]
+  H --> I["Parquet 质量元数据"]
+  H --> J["Train / Eval / SFT JSONL"]
+  I --> K["质量报告 / 样本画廊 / 看板"]
+  I --> L["v1.0 / v1.1 版本对比"]
 ```
 
 ## 核心能力
 
-- 数据接入：读取统一 manifest 或 COCO captions 标注，生成 `sample_id/image_path/caption/source`。
-- 图片质检：图片缺失、损坏、分辨率、宽高比、模糊度、亮度、文件大小。
-- 文本质检：caption 空值、过短、过长、不可打印字符、敏感词扩展位。
-- 图文一致性：可选 CLIP；无模型环境自动降级到 deterministic heuristic scorer。
-- 综合评分：`0.35 * image_quality + 0.25 * text_quality + 0.40 * image_text_similarity`。
-- 数据导出：`train.jsonl`、`val.jsonl`、`eval.jsonl`、`train_sft.jsonl`、`review_samples.jsonl`、`rejected_samples.jsonl`。
-- 质量看板：样本通过率、过滤原因、评分分布和待复核样本表。
+**数据接入**
 
-## Manifest 格式
+- 支持 COCO Captions 标注解析。
+- 支持统一 `manifest.jsonl` 输入。
+- 提供 `dataset_doctor` 检查 manifest、图片缺失、空 caption、重复 ID。
 
-`data/raw/manifest.jsonl` 每行一个样本：
+**图片质量检测**
 
-```json
-{"image_id":"000000391895","image_path":"images/000000391895.jpg","caption":"A man riding a bike down a street.","source":"coco"}
+- 图片缺失/损坏检测
+- 分辨率检测
+- 宽高比异常检测
+- 模糊度检测
+- 亮度异常检测
+- 感知哈希近重复检测
+
+**文本质量检测**
+
+- 空 caption 检测
+- 过短/过长 caption 检测
+- 非 printable 字符检测
+- 敏感词扩展位
+
+**模型辅助评分**
+
+- 接入 HuggingFace CLIP。
+- 使用 image/text embedding cosine similarity 计算图文一致性。
+- 支持无模型环境下自动 fallback 到 deterministic heuristic scorer。
+
+**数据集导出**
+
+- 普通 caption JSONL
+- eval JSONL
+- 多轮对话 SFT JSONL
+- review/rejected 样本队列
+
+**质量分析**
+
+- Markdown 质量报告
+- 静态 HTML 样本画廊
+- Streamlit 数据质量看板
+- caption 高频标签分布
+- v1.0/v1.1 数据版本对比
+
+## 项目结构
+
+```text
+configs/
+  quality_rules.yaml
+  quality_rules_coco_clip_v1.1.yaml
+
+scripts/
+  download_coco_val2017.ps1
+  prepare_coco_subset.py
+  dataset_doctor.py
+  generate_quality_report.py
+  generate_sample_gallery.py
+  analyze_caption_tags.py
+  compare_versions.py
+
+src/
+  ingestion/
+  quality/
+  models/
+  pipeline/
+  storage/
+  analysis/
+  dashboard/
+
+docs/
+  project_showcase.md
+  interview_playbook.md
 ```
 
-图片路径可以是绝对路径，也可以是相对 `data/raw` 的路径。
+## 快速开始
 
-## 本地运行
-
-安装依赖：
+安装基础依赖：
 
 ```powershell
 pip install -r requirements.txt
 ```
 
-生成本地 demo 数据：
+生成 demo 数据并运行离线 Pipeline：
 
 ```powershell
 python scripts/create_demo_data.py
-```
 
-检查当前 manifest 是否可以进入 Pipeline：
-
-```powershell
-python scripts/dataset_doctor.py `
+python -m src.pipeline.run_pipeline `
   --manifest data/raw/manifest.jsonl `
   --raw-data-dir data/raw `
-  --output data/processed/dataset_doctor.json
+  --processed-dir data/processed `
+  --export-dir data/exports `
+  --version v1.0 `
+  --no-clip
 ```
 
-从本地 COCO Captions 构建真实子集：
+启动质量看板：
+
+```powershell
+streamlit run src/dashboard/app.py
+```
+
+## 跑真实 COCO 数据
+
+下载并解压 COCO val2017：
 
 ```powershell
 .\scripts\download_coco_val2017.ps1
+```
 
-python scripts/dataset_doctor.py `
-  --coco-annotations data/raw/coco/annotations/captions_val2017.json `
-  --coco-image-dir data/raw/coco/val2017 `
-  --output data/processed_coco/coco_doctor.json
+构建 5000 条 COCO caption 子集：
 
+```powershell
 python scripts/prepare_coco_subset.py `
   --annotations data/raw/coco/annotations/captions_val2017.json `
   --source-image-dir data/raw/coco/val2017 `
@@ -84,123 +173,95 @@ python scripts/prepare_coco_subset.py `
   --limit 5000
 ```
 
-运行离线 MVP：
+检查数据是否可进入 Pipeline：
 
 ```powershell
-.\scripts\run_local_pipeline.ps1 -Manifest data/raw/manifest.jsonl -RawDataDir data/raw -Version v1.0
+python scripts/dataset_doctor.py `
+  --manifest data/raw/coco_subset/manifest.jsonl `
+  --raw-data-dir data/raw/coco_subset `
+  --output data/processed_coco/dataset_doctor_coco.json
 ```
 
-使用规则配置运行严格版 v1.1：
+运行基础规则版本：
 
 ```powershell
-.\scripts\run_local_pipeline.ps1 `
-  -Manifest data/raw/manifest.jsonl `
-  -RawDataDir data/raw `
-  -Version v1.1 `
-  -QualityRules configs/quality_rules_v1.1_strict.yaml
+python -m src.pipeline.run_pipeline `
+  --manifest data/raw/coco_subset/manifest.jsonl `
+  --raw-data-dir data/raw/coco_subset `
+  --processed-dir data/processed_coco `
+  --export-dir data/exports_coco `
+  --version coco_v1.0 `
+  --no-clip
 ```
 
-启用 CLIP：
+## 跑真实 CLIP 评分
+
+安装 CLIP 依赖：
 
 ```powershell
 pip install -r requirements-clip.txt
-.\scripts\run_local_pipeline.ps1 -Manifest data/raw/manifest.jsonl -RawDataDir data/raw -Version v1.0 -UseClip
 ```
 
-说明：真实 CLIP 依赖 `torch` 和 `transformers`。如果当前 Python 版本没有可用的 `torch` wheel，建议用 Python 3.10 或 3.11 重建虚拟环境后安装 `requirements-clip.txt`。不启用 `-UseClip` 时，Pipeline 会使用离线 heuristic scorer，适合快速验证流程。
-
-启动看板：
+运行 COCO + CLIP v1.0：
 
 ```powershell
-streamlit run src/dashboard/app.py
+python -m src.pipeline.run_pipeline `
+  --manifest data/raw/coco_subset/manifest.jsonl `
+  --raw-data-dir data/raw/coco_subset `
+  --processed-dir data/processed_clip_coco `
+  --export-dir data/exports_clip_coco `
+  --version coco_clip_v1.0 `
+  --model-cache-dir data/models/huggingface `
+  --clip-batch-size 32
 ```
 
-## 输出
-
-```text
-data/processed/processed_metadata_v1.0.parquet
-data/exports/train.jsonl
-data/exports/val.jsonl
-data/exports/eval.jsonl
-data/exports/train_sft.jsonl
-data/exports/review_samples.jsonl
-data/exports/rejected_samples.jsonl
-```
-
-## 版本对比
-
-跑出两个版本后可以生成质量对比：
+运行更严格的 v1.1 规则：
 
 ```powershell
-python scripts/compare_versions.py `
-  --old data/processed/processed_metadata_v1.0.parquet `
-  --new data/processed/processed_metadata_v1.1.parquet `
-  --output data/processed/version_compare_v1.0_v1.1.json
+python -m src.pipeline.run_pipeline `
+  --manifest data/raw/coco_subset/manifest.jsonl `
+  --raw-data-dir data/raw/coco_subset `
+  --processed-dir data/processed_clip_coco `
+  --export-dir data/exports_clip_coco_v1.1 `
+  --version coco_clip_v1.1 `
+  --model-cache-dir data/models/huggingface `
+  --clip-batch-size 32 `
+  --quality-rules configs/quality_rules_coco_clip_v1.1.yaml
 ```
 
-输出字段包括样本新增/移除数量、状态变化数量、通过率变化和平均质量分变化，用于面试中解释“规则迭代”和“数据闭环”。
+说明：模型缓存目录固定在 `data/models/huggingface`，避免 HuggingFace 默认用户目录权限问题。
 
-当前 demo 的 v1.1 strict 示例会把接受阈值从默认 `0.75` 提高到 `0.93`，产生可解释变化：
+## 生成分析报告
 
-```text
-old_acceptance_rate: 0.50
-new_acceptance_rate: 0.25
-status_changed_samples: 1
-```
-
-## 质量分析报告
-
-从元数据生成 Markdown 报告：
+生成质量报告：
 
 ```powershell
 python scripts/generate_quality_report.py `
-  --metadata data/processed/processed_metadata_v1.1.parquet `
-  --version v1.1 `
-  --output data/processed/quality_report_v1.1.md
+  --metadata data/processed_clip_coco/processed_metadata_coco_clip_v1.1.parquet `
+  --version coco_clip_v1.1 `
+  --output data/processed_clip_coco/quality_report_coco_clip_v1.1.md
 ```
 
-报告包含总样本量、通过率、平均图文相似度、平均质量分、过滤原因分布和最低质量样本，可直接用于 README 展示或面试讲解。
-
-生成静态 HTML 样本画廊：
+生成样本画廊：
 
 ```powershell
 python scripts/generate_sample_gallery.py `
-  --metadata data/processed/processed_metadata_v1.1.parquet `
-  --output data/processed/sample_gallery_v1.1.html `
-  --title "V1.1 Strict Quality Sample Gallery" `
-  --limit 60
+  --metadata data/processed_clip_coco/processed_metadata_coco_clip_v1.1.parquet `
+  --output data/processed_clip_coco/sample_gallery_coco_clip_v1.1.html `
+  --title "COCO CLIP V1.1 Quality Sample Gallery" `
+  --limit 80
 ```
 
-画廊会把图片以内嵌 base64 的方式写入 HTML，适合直接打开、截图并放进项目 README。
+生成版本对比：
 
-## 当前真实 COCO 运行结果
-
-本地已下载 COCO val2017，并用 5000 条 captions 跑通离线质量 Pipeline：
-
-```text
-total_samples: 5000
-accepted_samples: 4960
-rejected_samples: 40
-scorer_backend: heuristic
-main_filter_reason: low_resolution
+```powershell
+python scripts/compare_versions.py `
+  --old data/processed_clip_coco/processed_metadata_coco_clip_v1.0.parquet `
+  --new data/processed_clip_coco/processed_metadata_coco_clip_v1.1.parquet `
+  --output data/processed_clip_coco/version_compare_coco_clip_v1.0_v1.1.json
 ```
 
-真实 COCO 输出保存在 `data/processed_coco/` 和 `data/exports_coco/`，这些目录默认不提交到 Git，避免仓库体积过大。
-
-真实 CLIP 评分也已在同一批 5000 条 COCO captions 上跑通：
-
-```text
-scorer_backend: clip
-total_samples: 5000
-coco_clip_v1.0 accepted_samples: 4960
-coco_clip_v1.1 accepted_samples: 1283
-coco_clip_v1.1 review_samples: 3677
-v1.0_to_v1.1_status_changed_samples: 3677
-```
-
-CLIP 结果保存在 `data/processed_clip_coco/` 和 `data/exports_clip_coco*/`。这批输出同样默认不提交到 Git。
-
-生成 caption 关键词/标签分布：
+生成 caption 标签分布：
 
 ```powershell
 python scripts/analyze_caption_tags.py `
@@ -209,10 +270,55 @@ python scripts/analyze_caption_tags.py `
   --top-k 30
 ```
 
-当前 COCO 子集高频标签包括 `bathroom`、`sitting`、`toilet`、`man`、`kitchen`、`street`、`motorcycle`、`people` 等，可用于说明数据集主题分布和后续分层评测集构造。
+## 输出样例
 
-如果本地没有 Parquet engine，元数据会自动降级输出为 CSV，保证 Pipeline 不被环境阻塞。
+处理后的质量元数据包含：
+
+```json
+{
+  "sample_id": "coco_123456",
+  "image_path": "images/000000123456.jpg",
+  "caption": "A person riding a bicycle on a city street.",
+  "image_quality_score": 1.0,
+  "text_quality_score": 1.0,
+  "image_text_similarity": 0.6531,
+  "final_quality_score": 0.8612,
+  "filter_status": "accepted",
+  "filter_reason": "",
+  "perceptual_hash": "f0e1c3...",
+  "duplicate_group_size": 5,
+  "is_duplicate_image": true,
+  "split": "train",
+  "version": "coco_clip_v1.1"
+}
+```
+
+训练集 JSONL：
+
+```json
+{"image":"images/000000123456.jpg","caption":"A person riding a bicycle on a city street."}
+```
+
+SFT JSONL：
+
+```json
+{
+  "messages": [
+    {"role": "user", "content": "<image>\nPlease describe this image."},
+    {"role": "assistant", "content": "A person riding a bicycle on a city street."}
+  ],
+  "images": ["images/000000123456.jpg"]
+}
+```
+
+## 面试可讲点
+
+- 这个项目解决的是 VLM 训练前的数据生产问题，而不是模型训练本身。
+- 规则质检解决“图片/文本是否可用”，CLIP 解决“图文是否语义一致”。
+- COCO 的一图多 caption 被识别为重复图片组，但不直接过滤，保留了训练目标层面的选择空间。
+- v1.0/v1.1 通过阈值配置实现数据质量闭环：分析分布、调整规则、重跑版本、对比变化。
+- 真实 COCO 通过率高是合理现象，因为公开数据集本身质量较高；Pipeline 的价值在于可解释和可迁移。
 
 ## 简历描述
 
-图文多模态训练数据处理与质量评估 Pipeline：构建面向视觉语言模型训练数据生产的离线数据 Pipeline，完成图文样本接入、图片/文本基础质检、图文一致性评估、综合质量评分、accepted/rejected/review 样本分层、训练/评测 JSONL 导出与 Streamlit 质量看板建设。通过过滤原因、质量分和版本字段沉淀数据治理元数据，支持后续规则迭代和数据闭环分析。
+图文多模态训练数据处理与质量评估 Pipeline：面向视觉语言模型训练数据生产场景，构建离线数据质量治理 Pipeline，完成 COCO Captions 5000 条样本接入、图片/文本质检、CLIP 图文一致性评分、近重复检测、样本 accepted/rejected/review 分层、训练/评测/SFT JSONL 导出，以及质量报告、样本画廊、标签分布和版本对比闭环。
