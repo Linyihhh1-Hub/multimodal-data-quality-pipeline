@@ -1,0 +1,13 @@
+{
+  "old_total_samples": 4,
+  "new_total_samples": 4,
+  "added_samples": 0,
+  "removed_samples": 0,
+  "shared_samples": 4,
+  "status_changed_samples": 0,
+  "old_acceptance_rate": 0.5,
+  "new_acceptance_rate": 0.5,
+  "old_avg_quality_score": 0.6616,
+  "new_avg_quality_score": 0.6616,
+  "avg_quality_score_delta": 0.0
+}

@@ -4,6 +4,10 @@ import hashlib
 from pathlib import Path
 
 
+def cosine_to_unit_score(cosine_similarity: float) -> float:
+    return round(max(0.0, min(1.0, (float(cosine_similarity) + 1.0) / 2.0)), 4)
+
+
 class ClipScorer:
     """Optional CLIP scorer with a deterministic fallback for local demos/tests."""
 
@@ -45,9 +49,15 @@ class ClipScorer:
         inputs = self._preprocess(text=[caption], images=image, return_tensors="pt", padding=True)
         inputs = {key: value.to(self._device) for key, value in inputs.items()}
         with self._torch.no_grad():
-            outputs = self._model(**inputs)
-            similarity = outputs.logits_per_image.softmax(dim=1)[0][0].item()
-        return round(float(similarity), 4)
+            image_features = self._model.get_image_features(pixel_values=inputs["pixel_values"])
+            text_features = self._model.get_text_features(
+                input_ids=inputs["input_ids"],
+                attention_mask=inputs["attention_mask"],
+            )
+            image_features = image_features / image_features.norm(dim=-1, keepdim=True)
+            text_features = text_features / text_features.norm(dim=-1, keepdim=True)
+            cosine = (image_features * text_features).sum(dim=-1).item()
+        return cosine_to_unit_score(cosine)
 
     def _score_with_heuristic(self, image_path: str | Path, caption: str) -> float:
         text = (caption or "").strip()

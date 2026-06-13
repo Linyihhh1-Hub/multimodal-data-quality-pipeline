@@ -51,6 +51,16 @@ pip install -r requirements.txt
 python scripts/create_demo_data.py
 ```
 
+从本地 COCO Captions 构建真实子集：
+
+```powershell
+python scripts/prepare_coco_subset.py `
+  --annotations D:\datasets\coco\annotations\captions_val2017.json `
+  --source-image-dir D:\datasets\coco\val2017 `
+  --output-raw-dir data/raw `
+  --limit 5000
+```
+
 运行离线 MVP：
 
 ```powershell
@@ -63,6 +73,8 @@ python scripts/create_demo_data.py
 pip install -r requirements-clip.txt
 .\scripts\run_local_pipeline.ps1 -Manifest data/raw/manifest.jsonl -RawDataDir data/raw -Version v1.0 -UseClip
 ```
+
+说明：真实 CLIP 依赖 `torch` 和 `transformers`。如果当前 Python 版本没有可用的 `torch` wheel，建议用 Python 3.10 或 3.11 重建虚拟环境后安装 `requirements-clip.txt`。不启用 `-UseClip` 时，Pipeline 会使用离线 heuristic scorer，适合快速验证流程。
 
 启动看板：
 
@@ -81,6 +93,19 @@ data/exports/train_sft.jsonl
 data/exports/review_samples.jsonl
 data/exports/rejected_samples.jsonl
 ```
+
+## 版本对比
+
+跑出两个版本后可以生成质量对比：
+
+```powershell
+python scripts/compare_versions.py `
+  --old data/processed/processed_metadata_v1.0.parquet `
+  --new data/processed/processed_metadata_v1.1.parquet `
+  --output data/processed/version_compare_v1.0_v1.1.json
+```
+
+输出字段包括样本新增/移除数量、状态变化数量、通过率变化和平均质量分变化，用于面试中解释“规则迭代”和“数据闭环”。
 
 如果本地没有 Parquet engine，元数据会自动降级输出为 CSV，保证 Pipeline 不被环境阻塞。
 
