@@ -1,0 +1,12 @@
+.venv/
+__pycache__/
+.pytest_cache/
+*.pyc
+*.log
+.streamlit/
+
+# Keep small demo artifacts if desired, but ignore large local datasets by default.
+data/raw/coco/
+data/raw/flickr30k/
+data/raw/*.zip
+data/raw/*.tar

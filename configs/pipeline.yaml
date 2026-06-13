@@ -1,0 +1,12 @@
+data:
+  manifest_path: data/raw/manifest.jsonl
+  raw_data_dir: data/raw
+  processed_dir: data/processed
+  export_dir: data/exports
+
+pipeline:
+  version: v1.0
+  use_clip: false
+  train_ratio: 0.8
+  val_ratio: 0.1
+  seed: 42

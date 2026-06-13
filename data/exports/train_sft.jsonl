@@ -1,0 +1,1 @@
+{"messages": [{"role": "user", "content": "<image>\nPlease describe this image."}, {"role": "assistant", "content": "A dog sits near a wooden table indoors."}], "images": ["images/demo_2.jpg"]}
