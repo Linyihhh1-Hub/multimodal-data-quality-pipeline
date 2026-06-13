@@ -11,6 +11,7 @@ from src.pipeline.build_dataset import assign_splits
 from src.pipeline.export_sft import export_caption_jsonl, export_sft_jsonl, export_status_jsonl
 from src.pipeline.quality_rules import QualityRules, load_quality_rules
 from src.quality.image_quality import assess_image
+from src.quality.duplicate_detector import annotate_duplicate_hashes, compute_perceptual_hash
 from src.quality.quality_scorer import combine_quality
 from src.quality.text_quality import assess_caption
 from src.storage.metadata_store import write_metadata
@@ -47,15 +48,17 @@ def run_pipeline(
     version: str = "v1.0",
     use_clip: bool = True,
     quality_rules_path: str | Path | None = None,
+    model_cache_dir: str | Path | None = "data/models/huggingface",
+    clip_batch_size: int = 16,
 ) -> PipelineResult:
     raw_dir = Path(raw_data_dir)
     processed = Path(processed_dir)
     exports = Path(export_dir)
     df = load_manifest(manifest_path)
-    scorer = ClipScorer(use_clip=use_clip)
+    scorer = ClipScorer(use_clip=use_clip, model_cache_dir=model_cache_dir)
     rules = load_quality_rules(quality_rules_path)
 
-    records: list[dict] = []
+    prepared: list[dict] = []
     for _, row in df.iterrows():
         absolute_image_path = _resolve_image_path(raw_dir, str(row["image_path"]))
         image_result = assess_image(absolute_image_path, **rules.image)
@@ -63,7 +66,31 @@ def run_pipeline(
         if isinstance(text_kwargs.get("sensitive_words"), list):
             text_kwargs["sensitive_words"] = set(text_kwargs["sensitive_words"])
         text_result = assess_caption(row["caption"], **text_kwargs)
-        similarity = scorer.score(absolute_image_path, row["caption"])
+        prepared.append(
+            {
+                "row": row.to_dict(),
+                "absolute_image_path": absolute_image_path,
+                "image_result": image_result,
+                "text_result": text_result,
+            }
+        )
+
+    similarities = scorer.score_batch(
+        [item["absolute_image_path"] for item in prepared],
+        [str(item["row"]["caption"]) for item in prepared],
+        batch_size=clip_batch_size,
+    )
+
+    records: list[dict] = []
+    hash_cache: dict[str, str] = {}
+    for item, similarity in zip(prepared, similarities):
+        row = item["row"]
+        absolute_image_path = item["absolute_image_path"]
+        image_result = item["image_result"]
+        text_result = item["text_result"]
+        resolved_key = str(absolute_image_path)
+        if resolved_key not in hash_cache:
+            hash_cache[resolved_key] = compute_perceptual_hash(absolute_image_path)
         combined = combine_quality(
             image_status=image_result["filter_status"],
             text_status=text_result["filter_status"],
@@ -77,7 +104,7 @@ def run_pipeline(
         )
         records.append(
             {
-                **row.to_dict(),
+                **row,
                 "image_path": str(row["image_path"]),
                 "resolved_image_path": str(absolute_image_path),
                 "image_valid": image_result["image_valid"],
@@ -100,9 +127,11 @@ def run_pipeline(
                 "filter_status": combined["filter_status"],
                 "filter_reason": combined["filter_reason"],
                 "version": version,
+                "perceptual_hash": hash_cache[resolved_key],
             }
         )
 
+    records = annotate_duplicate_hashes(records)
     scored = assign_splits(pd.DataFrame(records))
     metadata_path = write_metadata(scored, processed / f"processed_metadata_{version}.parquet")
     train_jsonl = export_caption_jsonl(scored, exports / "train.jsonl", "train")
@@ -139,6 +168,8 @@ def main() -> None:
     parser.add_argument("--version", default="v1.0")
     parser.add_argument("--no-clip", action="store_true")
     parser.add_argument("--quality-rules", default=None)
+    parser.add_argument("--model-cache-dir", default="data/models/huggingface")
+    parser.add_argument("--clip-batch-size", type=int, default=16)
     args = parser.parse_args()
 
     result = run_pipeline(
@@ -149,6 +180,8 @@ def main() -> None:
         version=args.version,
         use_clip=not args.no_clip,
         quality_rules_path=args.quality_rules,
+        model_cache_dir=args.model_cache_dir,
+        clip_batch_size=args.clip_batch_size,
     )
     print(result)
 

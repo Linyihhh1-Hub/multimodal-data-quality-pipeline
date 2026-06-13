@@ -12,5 +12,12 @@ data/raw/coco_subset/
 data/raw/flickr30k/
 data/raw/*.zip
 data/raw/*.tar
+data/models/
 data/processed_coco/
 data/exports_coco/
+data/processed_clip/
+data/exports_clip/
+data/processed_clip_coco/
+data/exports_clip_coco/
+data/exports_clip_coco_v1.1/
+data/raw/coco_clip20/

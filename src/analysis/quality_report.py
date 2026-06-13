@@ -27,6 +27,12 @@ def build_quality_report(df: pd.DataFrame, version: str) -> str:
     acceptance_rate = accepted / total if total else 0.0
     avg_similarity = float(df["image_text_similarity"].mean()) if total else 0.0
     avg_score = float(df["final_quality_score"].mean()) if total else 0.0
+    duplicate_samples = int(df["is_duplicate_image"].sum()) if "is_duplicate_image" in df.columns else 0
+    duplicate_groups = (
+        int((df["duplicate_group_size"].fillna(0).astype(int) > 1).sum())
+        if "duplicate_group_size" in df.columns
+        else 0
+    )
 
     lines = [
         f"# Multimodal Data Quality Report - {version}",
@@ -42,6 +48,8 @@ def build_quality_report(df: pd.DataFrame, version: str) -> str:
         f"| Acceptance rate | {_percent(acceptance_rate)} |",
         f"| Average image-text similarity | {avg_similarity:.4f} |",
         f"| Average final quality score | {avg_score:.4f} |",
+        f"| Duplicate image samples | {duplicate_samples} |",
+        f"| Samples in duplicate groups | {duplicate_groups} |",
         "",
         "## Filter Reason Distribution",
         "",

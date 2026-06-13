@@ -180,6 +180,30 @@ main_filter_reason: low_resolution
 
 真实 COCO 输出保存在 `data/processed_coco/` 和 `data/exports_coco/`，这些目录默认不提交到 Git，避免仓库体积过大。
 
+真实 CLIP 评分也已在同一批 5000 条 COCO captions 上跑通：
+
+```text
+scorer_backend: clip
+total_samples: 5000
+coco_clip_v1.0 accepted_samples: 4960
+coco_clip_v1.1 accepted_samples: 1283
+coco_clip_v1.1 review_samples: 3677
+v1.0_to_v1.1_status_changed_samples: 3677
+```
+
+CLIP 结果保存在 `data/processed_clip_coco/` 和 `data/exports_clip_coco*/`。这批输出同样默认不提交到 Git。
+
+生成 caption 关键词/标签分布：
+
+```powershell
+python scripts/analyze_caption_tags.py `
+  --metadata data/processed_coco/processed_metadata_coco_v1.0.parquet `
+  --output data/processed_coco/tag_distribution_coco_v1.0.json `
+  --top-k 30
+```
+
+当前 COCO 子集高频标签包括 `bathroom`、`sitting`、`toilet`、`man`、`kitchen`、`street`、`motorcycle`、`people` 等，可用于说明数据集主题分布和后续分层评测集构造。
+
 如果本地没有 Parquet engine，元数据会自动降级输出为 CSV，保证 Pipeline 不被环境阻塞。
 
 ## 简历描述

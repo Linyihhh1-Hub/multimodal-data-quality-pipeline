@@ -15,6 +15,8 @@ def test_build_quality_report_contains_key_metrics(tmp_path: Path):
                 "filter_reason": "",
                 "image_text_similarity": 0.82,
                 "final_quality_score": 0.88,
+                "is_duplicate_image": False,
+                "duplicate_group_size": 1,
             },
             {
                 "sample_id": "b",
@@ -23,6 +25,8 @@ def test_build_quality_report_contains_key_metrics(tmp_path: Path):
                 "filter_reason": "short_caption;low_quality_score",
                 "image_text_similarity": 0.2,
                 "final_quality_score": 0.35,
+                "is_duplicate_image": True,
+                "duplicate_group_size": 2,
             },
         ]
     )
@@ -34,4 +38,5 @@ def test_build_quality_report_contains_key_metrics(tmp_path: Path):
     assert "Acceptance rate | 50.00%" in report
     assert "short_caption" in report
     assert "low_quality_score" in report
+    assert "Duplicate image samples | 1" in report
     assert "b | rejected" in report
