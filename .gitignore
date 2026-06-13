@@ -7,6 +7,10 @@ __pycache__/
 
 # Keep small demo artifacts if desired, but ignore large local datasets by default.
 data/raw/coco/
+data/raw/coco_downloads/
+data/raw/coco_subset/
 data/raw/flickr30k/
 data/raw/*.zip
 data/raw/*.tar
+data/processed_coco/
+data/exports_coco/

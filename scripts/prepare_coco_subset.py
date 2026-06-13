@@ -35,8 +35,9 @@ def prepare_coco_subset(
     written = 0
     with manifest_path.open("w", encoding="utf-8") as handle:
         for annotation in payload.get("annotations", []):
-            image_id = str(annotation["image_id"])
-            file_name = image_lookup.get(image_id, f"{int(image_id):012d}.jpg")
+            source_image_id = str(annotation["image_id"])
+            sample_image_id = str(annotation.get("id", source_image_id))
+            file_name = image_lookup.get(source_image_id, f"{int(source_image_id):012d}.jpg")
             source_image = source_dir / file_name
             if not source_image.exists():
                 continue
@@ -46,7 +47,7 @@ def prepare_coco_subset(
                 shutil.copy2(source_image, target_image)
 
             row = {
-                "image_id": image_id,
+                "image_id": sample_image_id,
                 "image_path": f"images/{file_name}",
                 "caption": annotation.get("caption", ""),
                 "source": "coco",

@@ -63,15 +63,17 @@ python scripts/dataset_doctor.py `
 从本地 COCO Captions 构建真实子集：
 
 ```powershell
+.\scripts\download_coco_val2017.ps1
+
 python scripts/dataset_doctor.py `
-  --coco-annotations D:\datasets\coco\annotations\captions_val2017.json `
-  --coco-image-dir D:\datasets\coco\val2017 `
-  --output data/processed/coco_doctor.json
+  --coco-annotations data/raw/coco/annotations/captions_val2017.json `
+  --coco-image-dir data/raw/coco/val2017 `
+  --output data/processed_coco/coco_doctor.json
 
 python scripts/prepare_coco_subset.py `
-  --annotations D:\datasets\coco\annotations\captions_val2017.json `
-  --source-image-dir D:\datasets\coco\val2017 `
-  --output-raw-dir data/raw `
+  --annotations data/raw/coco/annotations/captions_val2017.json `
+  --source-image-dir data/raw/coco/val2017 `
+  --output-raw-dir data/raw/coco_subset `
   --limit 5000
 ```
 
@@ -163,6 +165,20 @@ python scripts/generate_sample_gallery.py `
 ```
 
 画廊会把图片以内嵌 base64 的方式写入 HTML，适合直接打开、截图并放进项目 README。
+
+## 当前真实 COCO 运行结果
+
+本地已下载 COCO val2017，并用 5000 条 captions 跑通离线质量 Pipeline：
+
+```text
+total_samples: 5000
+accepted_samples: 4960
+rejected_samples: 40
+scorer_backend: heuristic
+main_filter_reason: low_resolution
+```
+
+真实 COCO 输出保存在 `data/processed_coco/` 和 `data/exports_coco/`，这些目录默认不提交到 Git，避免仓库体积过大。
 
 如果本地没有 Parquet engine，元数据会自动降级输出为 CSV，保证 Pipeline 不被环境阻塞。
 
