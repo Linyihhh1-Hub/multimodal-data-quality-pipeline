@@ -4,6 +4,13 @@
 
 第一版 MVP 聚焦图文数据，不做完整视频链路，不强依赖在线大模型生成 caption。CLIP 相似度模块支持可选启用；离线环境下会自动使用确定性启发式 scorer，保证 Pipeline 可以本地跑通。
 
+## 项目展示
+
+- 真实 COCO/CLIP 指标汇总：[docs/project_showcase.md](docs/project_showcase.md)
+- 面试讲稿与简历 bullet：[docs/interview_playbook.md](docs/interview_playbook.md)
+- 本地样本画廊：`data/processed_clip_coco/sample_gallery_coco_clip_v1.1.html`
+- 本地质量报告：`data/processed_clip_coco/quality_report_coco_clip_v1.1.md`
+
 ## 架构
 
 ```mermaid
