@@ -1,5 +1,7 @@
 # 图文多模态训练数据处理与质量评估 Pipeline
 
+[![tests](https://github.com/Linyihhh1-Hub/multimodal-data-quality-pipeline/actions/workflows/tests.yml/badge.svg)](https://github.com/Linyihhh1-Hub/multimodal-data-quality-pipeline/actions/workflows/tests.yml)
+
 面向视觉语言模型（VLM）训练数据生产场景，本项目实现了一个离线图文多模态数据治理 Pipeline：从 COCO Captions 原始数据接入开始，完成图片/文本基础质检、CLIP 图文一致性评分、近重复检测、样本分层过滤、训练/评测/SFT JSONL 导出，以及质量报告、样本画廊和版本对比。
 
 这个项目的重点不是训练大模型，也不是普通 OpenCV 图像识别，而是解决 **VLM 训练前的数据生产和质量治理问题**。

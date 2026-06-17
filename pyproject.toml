@@ -1,0 +1,48 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "multimodal-data-quality-pipeline"
+version = "0.1.0"
+description = "Offline multimodal image-text dataset construction and quality evaluation pipeline for VLM data preparation."
+readme = "README.md"
+requires-python = ">=3.10"
+license = { file = "LICENSE" }
+authors = [
+  { name = "Linyihhh1-Hub" }
+]
+dependencies = [
+  "pandas>=2.0",
+  "Pillow>=10.0",
+  "pyarrow>=14.0",
+  "opencv-python>=4.8",
+  "imagehash>=4.3",
+]
+
+[project.optional-dependencies]
+dashboard = [
+  "streamlit>=1.30",
+]
+clip = [
+  "transformers>=4.40",
+  "torch>=2.1",
+]
+dev = [
+  "pytest>=8.0",
+]
+all = [
+  "streamlit>=1.30",
+  "pytest>=8.0",
+  "transformers>=4.40",
+  "torch>=2.1",
+]
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["src*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]
+addopts = "-q"
