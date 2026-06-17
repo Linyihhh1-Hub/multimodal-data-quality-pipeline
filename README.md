@@ -95,7 +95,7 @@ flowchart LR
 
 - Markdown 质量报告
 - 静态 HTML 样本画廊
-- Streamlit 数据质量看板
+- Streamlit 数据质量看板，包含 Overview、Quality、Similarity、Tags、Review Queue、Video、Exports 多个视图
 - caption 高频标签分布
 - v1.0/v1.1 数据版本对比
 
