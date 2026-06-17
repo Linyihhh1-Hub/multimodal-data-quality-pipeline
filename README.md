@@ -13,6 +13,7 @@
 - 构建 `accepted / rejected / review` 样本分层机制。
 - 输出训练集、评测集、多轮对话 SFT JSONL。
 - 记录 `filter_reason`、`final_quality_score`、`perceptual_hash`、`duplicate_group_size` 等质量元数据。
+- 扩展短视频关键帧抽取 Demo，支持视频帧级质量检测和 frame manifest 构建。
 - 支持 v1.0/v1.1 规则迭代和版本质量对比。
 - 生成 Markdown 质量报告、静态 HTML 样本画廊、Streamlit 看板和 caption 标签分布。
 
@@ -97,6 +98,12 @@ flowchart LR
 - caption 高频标签分布
 - v1.0/v1.1 数据版本对比
 
+**视频扩展 Demo**
+
+- 使用 OpenCV 对短视频按时间间隔抽取关键帧。
+- 复用图片质量规则检测关键帧分辨率、亮度、模糊度等指标。
+- 输出 `video_id`、`frame_index`、`timestamp_seconds`、`frame_path` 和质量字段组成的 JSONL manifest。
+
 ## 项目结构
 
 ```text
@@ -107,6 +114,8 @@ configs/
 scripts/
   download_coco_val2017.ps1
   prepare_coco_subset.py
+  create_demo_video.py
+  process_video_demo.py
   dataset_doctor.py
   generate_quality_report.py
   generate_sample_gallery.py
@@ -117,6 +126,7 @@ src/
   ingestion/
   quality/
   models/
+  video/
   pipeline/
   storage/
   analysis/
@@ -157,6 +167,40 @@ python -m src.pipeline.run_pipeline `
 
 ```powershell
 streamlit run src/dashboard/app.py
+```
+
+## 视频关键帧 Demo
+
+生成一个本地短视频：
+
+```powershell
+python scripts/create_demo_video.py
+```
+
+抽取关键帧并生成帧级质量 manifest：
+
+```powershell
+python scripts/process_video_demo.py `
+  --video data/raw/videos/demo_video.mp4 `
+  --frame-output-dir data/raw/video_frames/demo_video `
+  --raw-data-dir data/raw `
+  --manifest data/processed/video_frame_manifest.jsonl `
+  --interval 1.0
+```
+
+输出样例字段包括：
+
+```json
+{
+  "sample_id": "demo_video_frame_000000",
+  "video_id": "demo_video",
+  "frame_path": "video_frames/demo_video/demo_video_frame_000000.jpg",
+  "caption": "Key frame from demo_video at 0.0s for visual content review.",
+  "frame_index": 0,
+  "timestamp_seconds": 0.0,
+  "image_quality_score": 0.85,
+  "filter_status": "accepted"
+}
 ```
 
 ## 跑真实 COCO 数据

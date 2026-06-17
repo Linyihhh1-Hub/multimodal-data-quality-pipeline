@@ -8,6 +8,8 @@ __pycache__/
 # Local generated data and model artifacts.
 data/raw/manifest.jsonl
 data/raw/images/
+data/raw/videos/
+data/raw/video_frames/
 data/processed/
 data/exports/
 data/exports_v1.1/
