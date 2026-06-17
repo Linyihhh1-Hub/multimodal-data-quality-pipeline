@@ -5,7 +5,12 @@ __pycache__/
 *.log
 .streamlit/
 
-# Keep small demo artifacts if desired, but ignore large local datasets by default.
+# Local generated data and model artifacts.
+data/raw/manifest.jsonl
+data/raw/images/
+data/processed/
+data/exports/
+data/exports_v1.1/
 data/raw/coco/
 data/raw/coco_downloads/
 data/raw/coco_subset/

@@ -124,6 +124,9 @@ src/
 
 docs/
   project_showcase.md
+
+examples/
+  manifest_demo.jsonl
 ```
 
 ## 快速开始
@@ -147,6 +150,8 @@ python -m src.pipeline.run_pipeline `
   --version v1.0 `
   --no-clip
 ```
+
+说明：`data/` 目录用于本地原始数据、处理结果和导出文件，不提交到 Git；仓库中只保留 `examples/manifest_demo.jsonl` 作为小型输入样例。
 
 启动质量看板：
 
