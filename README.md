@@ -88,6 +88,7 @@ flowchart LR
 - 普通 caption JSONL
 - eval JSONL
 - 多轮对话 SFT JSONL
+- 智能创作 SFT JSONL
 - review/rejected 样本队列
 
 **质量分析**
@@ -136,6 +137,8 @@ src/
 
 docs/
   project_showcase.md
+  data_card.md
+  scaling_design.md
 
 examples/
   manifest_demo.jsonl
@@ -169,6 +172,18 @@ python -m src.pipeline.run_pipeline `
 
 ```powershell
 streamlit run src/dashboard/app.py
+```
+
+## 配置驱动 CLI
+
+项目支持通过 `configs/pipeline.yaml` 统一管理输入输出路径、模型开关、质量规则、视频处理和创作 SFT 导出配置。
+
+```powershell
+python -m src.cli doctor --config configs/pipeline.yaml
+python -m src.cli run --config configs/pipeline.yaml
+python -m src.cli report --config configs/pipeline.yaml
+python -m src.cli video --config configs/pipeline.yaml
+python -m src.cli creative-sft --config configs/pipeline.yaml
 ```
 
 ## 视频数据处理模块
@@ -223,6 +238,24 @@ python scripts/process_video_demo.py `
   "filter_status": "accepted"
 }
 ```
+
+## 智能创作 SFT 导出
+
+图文样本可以导出为面向智能创作场景的 image-to-video prompt 数据：
+
+```json
+{
+  "sample_id": "demo_1",
+  "task_type": "image_to_video_prompt",
+  "messages": [
+    {"role": "user", "content": "<image>\n请根据这张图片生成适合短视频创作的镜头描述和创作提示。"},
+    {"role": "assistant", "content": "画面内容：A person rides a bicycle on a city street.\n创作提示：可围绕主体、场景和动作生成短视频镜头描述。"}
+  ],
+  "images": ["images/demo_1.jpg"]
+}
+```
+
+视频关键帧可以导出为 video-keyframes-to-creation-prompt 数据，用于智能创作模型的数据构造或评测样本组织。
 
 ## 跑真实 COCO 数据
 

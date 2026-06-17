@@ -7,6 +7,28 @@ data:
 pipeline:
   version: v1.0
   use_clip: false
+  quality_rules_path: configs/quality_rules.yaml
+  model_cache_dir: data/models/huggingface
+  clip_batch_size: 16
   train_ratio: 0.8
   val_ratio: 0.1
   seed: 42
+
+report:
+  output: data/processed/quality_report.md
+
+video:
+  video_path: data/raw/videos/demo_video.mp4
+  frame_output_dir: data/raw/video_frames/demo_video
+  raw_data_dir: data/raw
+  video_manifest_path: data/processed/video_manifest.jsonl
+  frame_manifest_path: data/processed/video_frame_manifest.jsonl
+  sample_interval_seconds: 1.0
+  max_frames: 16
+  source: video_demo
+
+creative_sft:
+  metadata_path: data/processed/processed_metadata_v1.0.parquet
+  image_output: data/exports/creative_image_sft.jsonl
+  video_frame_manifest_path: data/processed/video_frame_manifest.jsonl
+  video_output: data/exports/creative_video_sft.jsonl

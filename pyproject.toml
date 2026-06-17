@@ -38,6 +38,9 @@ all = [
   "torch>=2.1",
 ]
 
+[project.scripts]
+multimodal-pipeline = "src.cli:main"
+
 [tool.setuptools.packages.find]
 where = ["."]
 include = ["src*"]
