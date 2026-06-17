@@ -16,10 +16,13 @@ def extract_keyframes(
     video_path: str | Path,
     output_dir: str | Path,
     sample_interval_seconds: float = 1.0,
+    max_frames: int | None = None,
     image_extension: str = ".jpg",
 ) -> list[ExtractedFrame]:
     if sample_interval_seconds <= 0:
         raise ValueError("sample_interval_seconds must be greater than 0")
+    if max_frames is not None and max_frames <= 0:
+        raise ValueError("max_frames must be greater than 0 when provided")
 
     try:
         import cv2
@@ -63,6 +66,8 @@ def extract_keyframes(
                         frame_path=frame_path,
                     )
                 )
+                if max_frames is not None and len(extracted) >= max_frames:
+                    break
             frame_index += 1
     finally:
         capture.release()

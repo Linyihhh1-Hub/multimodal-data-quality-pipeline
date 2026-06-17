@@ -13,7 +13,7 @@
 - 构建 `accepted / rejected / review` 样本分层机制。
 - 输出训练集、评测集、多轮对话 SFT JSONL。
 - 记录 `filter_reason`、`final_quality_score`、`perceptual_hash`、`duplicate_group_size` 等质量元数据。
-- 扩展短视频关键帧抽取 Demo，支持视频帧级质量检测和 frame manifest 构建。
+- 扩展视频数据处理模块，支持视频元信息解析、关键帧采样、帧级质量检测和视频/帧级 manifest 构建。
 - 支持 v1.0/v1.1 规则迭代和版本质量对比。
 - 生成 Markdown 质量报告、静态 HTML 样本画廊、Streamlit 看板和 caption 标签分布。
 
@@ -98,11 +98,13 @@ flowchart LR
 - caption 高频标签分布
 - v1.0/v1.1 数据版本对比
 
-**视频扩展 Demo**
+**视频数据处理**
 
-- 使用 OpenCV 对短视频按时间间隔抽取关键帧。
+- 使用 OpenCV 解析视频时长、FPS、帧数、分辨率和文件大小。
+- 支持固定时间间隔抽帧，并可限制单视频最大采样帧数。
 - 复用图片质量规则检测关键帧分辨率、亮度、模糊度等指标。
-- 输出 `video_id`、`frame_index`、`timestamp_seconds`、`frame_path` 和质量字段组成的 JSONL manifest。
+- 输出视频级 `video_manifest.jsonl` 和帧级 `video_frame_manifest.jsonl`。
+- 汇总 `valid_frame_count`、`rejected_frame_count`、`video_quality_score` 等视频级质量指标。
 
 ## 项目结构
 
@@ -169,7 +171,7 @@ python -m src.pipeline.run_pipeline `
 streamlit run src/dashboard/app.py
 ```
 
-## 视频关键帧 Demo
+## 视频数据处理模块
 
 生成一个本地短视频：
 
@@ -177,18 +179,37 @@ streamlit run src/dashboard/app.py
 python scripts/create_demo_video.py
 ```
 
-抽取关键帧并生成帧级质量 manifest：
+抽取关键帧并生成视频级与帧级质量 manifest：
 
 ```powershell
 python scripts/process_video_demo.py `
   --video data/raw/videos/demo_video.mp4 `
   --frame-output-dir data/raw/video_frames/demo_video `
   --raw-data-dir data/raw `
+  --video-manifest data/processed/video_manifest.jsonl `
   --manifest data/processed/video_frame_manifest.jsonl `
-  --interval 1.0
+  --interval 1.0 `
+  --max-frames 16
 ```
 
-输出样例字段包括：
+视频级 manifest 样例：
+
+```json
+{
+  "video_id": "demo_video",
+  "video_path": "videos/demo_video.mp4",
+  "fps": 12.0,
+  "frame_count": 48,
+  "duration_seconds": 4.0,
+  "width": 640,
+  "height": 360,
+  "sampled_frame_count": 4,
+  "valid_frame_count": 4,
+  "video_quality_score": 0.92
+}
+```
+
+帧级 manifest 样例：
 
 ```json
 {
