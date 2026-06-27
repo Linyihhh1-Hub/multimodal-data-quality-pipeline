@@ -38,6 +38,20 @@
 
 更多展示指标见：[docs/project_showcase.md](docs/project_showcase.md)
 
+## 看板预览
+
+### 总览
+
+![AI 训练数据治理工作台总览](docs/assets/dashboard_overview.png)
+
+### 诊断
+
+![AI 训练数据治理工作台诊断页](docs/assets/dashboard_diagnosis.png)
+
+### 数据资产
+
+![AI 训练数据治理工作台资产页](docs/assets/dashboard_assets.png)
+
 ## 架构
 
 ```mermaid
