@@ -95,7 +95,7 @@ flowchart LR
 
 - Markdown 质量报告
 - 静态 HTML 样本画廊
-- Streamlit 数据质量看板，包含 Overview、Quality、Similarity、Tags、Review Queue、Video、Exports 多个视图
+- Streamlit 数据质量看板，包含总览、诊断、复核、视频、资产多个中文视图
 - caption 高频标签分布
 - v1.0/v1.1 数据版本对比
 
@@ -116,6 +116,7 @@ configs/
 
 scripts/
   download_coco_val2017.ps1
+  run_dashboard.ps1
   prepare_coco_subset.py
   create_demo_video.py
   process_video_demo.py
@@ -171,8 +172,10 @@ python -m src.pipeline.run_pipeline `
 启动质量看板：
 
 ```powershell
-streamlit run src/dashboard/app.py
+.\scripts\run_dashboard.ps1
 ```
+
+该脚本会把 Streamlit / Python 临时目录固定到项目内 `.tmp/streamlit`，并关闭文件监听，避免 Windows 用户临时目录权限异常导致看板启动后卡住或退出。
 
 ## 配置驱动 CLI
 

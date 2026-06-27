@@ -120,7 +120,10 @@ def test_build_video_dataset_writes_video_and_frame_manifests(tmp_path: Path):
     assert video_row["rejected_frame_count"] == 0
     assert video_row["video_quality_score"] > 0
 
-    frame_rows = [json.loads(line) for line in (processed_dir / "video_frame_manifest.jsonl").read_text().splitlines()]
+    frame_rows = [
+        json.loads(line)
+        for line in (processed_dir / "video_frame_manifest.jsonl").read_text(encoding="utf-8").splitlines()
+    ]
     assert len(frame_rows) == 2
     assert frame_rows[0]["frame_path"] == "video_frames/demo/demo_frame_000000.jpg"
 

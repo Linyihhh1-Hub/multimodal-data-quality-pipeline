@@ -16,13 +16,14 @@ dependencies = [
   "pandas>=2.0",
   "Pillow>=10.0",
   "pyarrow>=14.0",
+  "duckdb>=0.10.0",
   "opencv-python>=4.8",
   "imagehash>=4.3",
 ]
 
 [project.optional-dependencies]
 dashboard = [
-  "streamlit>=1.30",
+  "streamlit>=1.58",
 ]
 clip = [
   "transformers>=4.40",
@@ -32,7 +33,7 @@ dev = [
   "pytest>=8.0",
 ]
 all = [
-  "streamlit>=1.30",
+  "streamlit>=1.58",
   "pytest>=8.0",
   "transformers>=4.40",
   "torch>=2.1",

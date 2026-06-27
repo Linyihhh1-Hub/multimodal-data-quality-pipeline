@@ -12,6 +12,18 @@ class ExtractedFrame:
     frame_path: Path
 
 
+def _write_frame(frame_path: Path, frame, image_extension: str) -> None:
+    try:
+        import cv2
+    except Exception as exc:
+        raise RuntimeError("OpenCV is required for video keyframe extraction") from exc
+
+    ok, encoded = cv2.imencode(image_extension, frame)
+    if not ok:
+        raise IOError(f"Failed to encode extracted frame: {frame_path}")
+    frame_path.write_bytes(encoded.tobytes())
+
+
 def extract_keyframes(
     video_path: str | Path,
     output_dir: str | Path,
@@ -56,8 +68,7 @@ def extract_keyframes(
             if frame_index % step == 0:
                 frame_name = f"{video_id}_frame_{frame_index:06d}{image_extension}"
                 frame_path = frames_dir / frame_name
-                if not cv2.imwrite(str(frame_path), frame):
-                    raise IOError(f"Failed to write extracted frame: {frame_path}")
+                _write_frame(frame_path, frame, image_extension)
                 extracted.append(
                     ExtractedFrame(
                         video_id=video_id,
