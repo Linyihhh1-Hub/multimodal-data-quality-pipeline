@@ -449,7 +449,7 @@ python -m src.quality.split_leakage `
 
 详细说明见：[docs/split_leakage_check.md](docs/split_leakage_check.md)
 
-## 面试讲法
+## 治理链路概览
 
 这个项目可以概括为一条 AI 训练数据治理链路：
 
@@ -457,8 +457,6 @@ python -m src.quality.split_leakage `
 原始图文/视频数据 -> 自动质量检测 -> CLIP 图文一致性评分 -> accepted/review/rejected 分层
 -> 人工复核回流 -> 训练/评测/SFT 导出 -> train/eval 泄漏检测 -> DuckDB 聚合分析 -> Streamlit 治理工作台
 ```
-
-面试时可以强调：项目不是单纯跑模型，而是围绕训练数据质量、版本、复核、导出和评测可信度做工程化治理。它覆盖了样本级质检、数据资产输出、人工闭环、聚合分析和看板展示，能体现 AI 数据工程实习生需要的数据处理、质量分析和工程落地能力。
 
 ## 输出样例
 
