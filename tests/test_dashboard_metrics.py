@@ -14,6 +14,8 @@ from src.dashboard.metrics import (
     explode_filter_reasons,
     filter_reason_topn,
     load_jsonl_rows,
+    load_feedback_loop_artifacts,
+    load_run_center_rows,
     localize_status,
     review_queue,
     score_columns,
@@ -272,3 +274,87 @@ def test_export_inventory_lists_jsonl_files():
     assert rows.loc["train.jsonl", "purpose"] == "普通训练集"
     assert bool(rows.loc["review_samples.jsonl", "exists"]) is False
     assert rows.loc["review_samples.jsonl", "status_label"] == "不存在"
+
+
+def test_load_run_center_rows_reads_run_manifests():
+    runs_dir = Path(".tmp/dashboard-metrics-tests/runs")
+    run_dir = runs_dir / "run-a"
+    run_dir.mkdir(parents=True, exist_ok=True)
+    (run_dir / "manifest.json").write_text(
+        """
+{
+  "run_id": "run-a",
+  "inputs": {"manifest": "data/raw/manifest.jsonl"},
+  "samples": {"total": 10, "accepted": 7, "review": 2, "rejected": 1}
+}
+""".strip(),
+        encoding="utf-8",
+    )
+    (run_dir / "quality_report.json").write_text("{}", encoding="utf-8")
+
+    rows = load_run_center_rows(runs_dir)
+
+    assert rows.to_dict("records") == [
+        {
+            "run_id": "run-a",
+            "input_samples": 10,
+            "output_samples": 7,
+            "filtered_samples": 3,
+            "filter_rate": 0.3,
+            "quality_report_path": str(run_dir / "quality_report.json"),
+        }
+    ]
+
+
+def test_load_run_center_rows_returns_empty_for_missing_runs_dir():
+    rows = load_run_center_rows(Path(".tmp/dashboard-metrics-tests/missing-runs"))
+
+    assert rows.empty
+    assert list(rows.columns) == [
+        "run_id",
+        "input_samples",
+        "output_samples",
+        "filtered_samples",
+        "filter_rate",
+        "quality_report_path",
+    ]
+
+
+def test_load_feedback_loop_artifacts_reads_report_and_manifest_stats():
+    feedback_dir = Path(".tmp/dashboard-metrics-tests/feedback")
+    feedback_dir.mkdir(parents=True, exist_ok=True)
+    (feedback_dir / "evaluation_feedback_report.md").write_text("# Evaluation Feedback Report\n", encoding="utf-8")
+    (feedback_dir / "second_round_manifest.jsonl").write_text(
+        "\n".join(
+            [
+                '{"sample_id":"a","error_type":"semantic_mismatch","recommendation":"keep"}',
+                '{"sample_id":"b","error_type":"semantic_mismatch","recommendation":"review"}',
+                '{"sample_id":"c","error_type":"coverage_gap","recommendation":"augment_candidate"}',
+            ]
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+
+    artifacts = load_feedback_loop_artifacts(feedback_dir)
+
+    assert artifacts["report_text"] == "# Evaluation Feedback Report\n"
+    assert artifacts["error_type_stats"].to_dict("records") == [
+        {"error_type": "semantic_mismatch", "samples": 2},
+        {"error_type": "coverage_gap", "samples": 1},
+    ]
+    assert artifacts["recommendation_stats"].to_dict("records") == [
+        {"recommendation": "augment_candidate", "samples": 1},
+        {"recommendation": "keep", "samples": 1},
+        {"recommendation": "review", "samples": 1},
+    ]
+    assert len(artifacts["second_round_manifest"]) == 3
+
+
+def test_load_feedback_loop_artifacts_returns_empty_state_for_missing_files():
+    artifacts = load_feedback_loop_artifacts(Path(".tmp/dashboard-metrics-tests/missing-feedback"))
+
+    assert artifacts["report_text"] == ""
+    assert artifacts["error_type_stats"].empty
+    assert artifacts["recommendation_stats"].empty
+    assert artifacts["second_round_manifest"].empty

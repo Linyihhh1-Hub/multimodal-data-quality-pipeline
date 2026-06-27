@@ -41,6 +41,10 @@ pipeline:
   use_clip: false
   clip_batch_size: 2
 
+runs:
+  archive: true
+  runs_dir: {(tmp_path / "outputs" / "runs").as_posix()}
+
 report:
   output: {(processed_dir / "quality_report.md").as_posix()}
 

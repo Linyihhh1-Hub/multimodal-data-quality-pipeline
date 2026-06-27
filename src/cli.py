@@ -50,6 +50,7 @@ def run_doctor(config: dict[str, Any]) -> dict[str, Any]:
 def run_configured_pipeline(config: dict[str, Any]):
     data = _section(config, "data")
     pipeline = _section(config, "pipeline")
+    runs = _section(config, "runs")
     return run_pipeline(
         manifest_path=data.get("manifest_path", "data/raw/manifest.jsonl"),
         raw_data_dir=data.get("raw_data_dir", "data/raw"),
@@ -60,6 +61,10 @@ def run_configured_pipeline(config: dict[str, Any]):
         quality_rules_path=pipeline.get("quality_rules_path"),
         model_cache_dir=pipeline.get("model_cache_dir", "data/models/huggingface"),
         clip_batch_size=int(pipeline.get("clip_batch_size", 16)),
+        run_id=runs.get("run_id"),
+        runs_dir=runs.get("runs_dir", "outputs/runs"),
+        archive_run=bool(runs.get("archive", True)),
+        config_snapshot=config,
     )
 
 

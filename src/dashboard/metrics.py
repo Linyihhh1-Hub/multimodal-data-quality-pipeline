@@ -231,6 +231,76 @@ def load_jsonl_rows(path: str | Path) -> pd.DataFrame:
     return pd.DataFrame(rows)
 
 
+def _empty_run_center_frame() -> pd.DataFrame:
+    return pd.DataFrame(
+        {
+            "run_id": pd.Series(dtype="string"),
+            "input_samples": pd.Series(dtype="int64"),
+            "output_samples": pd.Series(dtype="int64"),
+            "filtered_samples": pd.Series(dtype="int64"),
+            "filter_rate": pd.Series(dtype="float64"),
+            "quality_report_path": pd.Series(dtype="string"),
+        }
+    )
+
+
+def load_run_center_rows(runs_dir: str | Path) -> pd.DataFrame:
+    root = Path(runs_dir)
+    if not root.exists() or not root.is_dir():
+        return _empty_run_center_frame()
+
+    rows: list[dict[str, Any]] = []
+    for run_dir in sorted((item for item in root.iterdir() if item.is_dir()), reverse=True):
+        manifest_path = run_dir / "manifest.json"
+        if not manifest_path.exists():
+            continue
+        try:
+            manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+        except json.JSONDecodeError:
+            continue
+        samples = manifest.get("samples", {}) if isinstance(manifest.get("samples"), dict) else {}
+        total = int(samples.get("total", 0) or 0)
+        accepted = int(samples.get("accepted", 0) or 0)
+        review = int(samples.get("review", 0) or 0)
+        rejected = int(samples.get("rejected", 0) or 0)
+        filtered = review + rejected
+        rows.append(
+            {
+                "run_id": str(manifest.get("run_id") or run_dir.name),
+                "input_samples": total,
+                "output_samples": accepted,
+                "filtered_samples": filtered,
+                "filter_rate": round(filtered / total, 4) if total else 0.0,
+                "quality_report_path": str(run_dir / "quality_report.json"),
+            }
+        )
+    if not rows:
+        return _empty_run_center_frame()
+    return pd.DataFrame(rows)
+
+
+def _count_column(df: pd.DataFrame, column: str) -> pd.DataFrame:
+    if df.empty or column not in df.columns:
+        return pd.DataFrame({column: pd.Series(dtype="string"), "samples": pd.Series(dtype="int64")})
+    counts = df[column].fillna("").astype(str).replace("", pd.NA).dropna().value_counts()
+    counts = counts.sort_index().sort_values(ascending=False, kind="stable")
+    return pd.DataFrame({column: counts.index.astype(str), "samples": counts.astype(int).values})
+
+
+def load_feedback_loop_artifacts(feedback_dir: str | Path) -> dict[str, Any]:
+    root = Path(feedback_dir)
+    report_path = root / "evaluation_feedback_report.md"
+    manifest_path = root / "second_round_manifest.jsonl"
+    report_text = report_path.read_text(encoding="utf-8") if report_path.exists() else ""
+    manifest = load_jsonl_rows(manifest_path)
+    return {
+        "report_text": report_text,
+        "second_round_manifest": manifest,
+        "error_type_stats": _count_column(manifest, "error_type"),
+        "recommendation_stats": _count_column(manifest, "recommendation"),
+    }
+
+
 def review_queue(df: pd.DataFrame, limit: int = 200) -> pd.DataFrame:
     column = _status_column(df)
     if column is None:

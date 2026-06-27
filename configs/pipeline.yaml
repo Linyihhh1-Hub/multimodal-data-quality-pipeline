@@ -14,6 +14,11 @@ pipeline:
   val_ratio: 0.1
   seed: 42
 
+runs:
+  archive: true
+  runs_dir: outputs/runs
+  run_id:
+
 report:
   output: data/processed/quality_report.md
 

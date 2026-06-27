@@ -22,6 +22,7 @@ data/raw/flickr30k/
 data/raw/*.zip
 data/raw/*.tar
 data/models/
+outputs/
 data/processed_coco/
 data/exports_coco/
 data/processed_clip/

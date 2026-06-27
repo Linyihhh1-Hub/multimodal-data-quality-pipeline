@@ -1,0 +1,5 @@
+sample_id,prediction,ground_truth,error_type,error_reason
+demo_demo_1,A cyclist rides on a road,A person rides a bicycle on a city street,semantic_mismatch,object and scene are partly correct but caption misses city context
+demo_demo_2,A cat sits near a table,A dog sits near a wooden table indoors,semantic_mismatch,wrong animal category
+demo_demo_small,small object,small,quality_defect,ground truth caption is too short to supervise model behavior
+demo_missing_caption,A person rides a bicycle,,coverage_gap,missing ground truth makes downstream evaluation ambiguous

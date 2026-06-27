@@ -16,7 +16,9 @@ from src.dashboard.metrics import (
     diagnostic_samples,
     export_inventory,
     filter_reason_topn,
+    load_feedback_loop_artifacts,
     load_jsonl_rows,
+    load_run_center_rows,
     localize_status,
     review_queue,
     score_columns,
@@ -68,6 +70,16 @@ def _load_metadata(path: str) -> pd.DataFrame:
 @st.cache_data(ttl="5m", max_entries=12)
 def _load_jsonl(path: str) -> pd.DataFrame:
     return load_jsonl_rows(path)
+
+
+@st.cache_data(ttl="2m", max_entries=8)
+def _load_run_rows(path: str) -> pd.DataFrame:
+    return load_run_center_rows(path)
+
+
+@st.cache_data(ttl="2m", max_entries=8)
+def _load_feedback_artifacts(path: str) -> dict[str, Any]:
+    return load_feedback_loop_artifacts(path)
 
 
 def _pct(value: float | None) -> str:
@@ -376,6 +388,111 @@ def _render_assets(df: pd.DataFrame, export_dir: Path) -> None:
             )
 
 
+def _render_run_center(runs_df: pd.DataFrame, runs_dir: Path) -> None:
+    if runs_df.empty:
+        st.info(
+            f"未找到历史 Run 产物。请先运行 Pipeline，并确认 Runs 目录为 `{runs_dir}`。",
+            icon=":material/info:",
+        )
+        return
+
+    total_runs = len(runs_df)
+    latest = runs_df.iloc[0]
+    with st.container(horizontal=True):
+        st.metric("Run 数量", f"{total_runs:,}", border=True)
+        st.metric("最近 Run", str(latest["run_id"]), border=True)
+        st.metric("最近输入样本", f"{int(latest['input_samples']):,}", border=True)
+        st.metric("最近输出样本", f"{int(latest['output_samples']):,}", border=True)
+        st.metric("最近过滤比例", _pct(float(latest["filter_rate"])), border=True)
+
+    with st.container(border=True):
+        st.subheader("历史 Run", anchor=False)
+        st.dataframe(
+            runs_df,
+            hide_index=True,
+            width="stretch",
+            column_config={
+                "run_id": st.column_config.TextColumn("run_id", pinned=True),
+                "input_samples": st.column_config.NumberColumn("输入样本数", format="%d"),
+                "output_samples": st.column_config.NumberColumn("输出样本数", format="%d"),
+                "filtered_samples": st.column_config.NumberColumn("过滤样本数", format="%d"),
+                "filter_rate": st.column_config.ProgressColumn("过滤比例", format="percent", min_value=0, max_value=1),
+                "quality_report_path": st.column_config.TextColumn("质量报告路径", width="large"),
+            },
+        )
+
+
+def _render_feedback_loop(feedback: dict[str, Any], feedback_dir: Path) -> None:
+    manifest_df = feedback["second_round_manifest"]
+    report_text = feedback["report_text"]
+    if manifest_df.empty and not report_text:
+        st.info(
+            f"未找到评测错误回流产物。请先运行 `python -m src.evaluation.evaluation_feedback`，并确认目录为 `{feedback_dir}`。",
+            icon=":material/info:",
+        )
+        return
+
+    error_stats = feedback["error_type_stats"]
+    recommendation_stats = feedback["recommendation_stats"]
+    with st.container(horizontal=True):
+        st.metric("错误样本数", f"{len(manifest_df):,}", border=True)
+        st.metric("错误类型数", f"{len(error_stats):,}", border=True)
+        st.metric("二轮建议类型数", f"{len(recommendation_stats):,}", border=True)
+
+    left, right = st.columns([0.5, 0.5], vertical_alignment="top")
+    with left:
+        with st.container(border=True):
+            st.subheader("错误类型统计", anchor=False)
+            if error_stats.empty:
+                st.caption("暂无 error_type 统计。")
+            else:
+                st.bar_chart(error_stats, x="error_type", y="samples", horizontal=True)
+                st.dataframe(error_stats, hide_index=True, width="stretch")
+    with right:
+        with st.container(border=True):
+            st.subheader("二轮处理建议", anchor=False)
+            if recommendation_stats.empty:
+                st.caption("暂无 recommendation 统计。")
+            else:
+                st.bar_chart(recommendation_stats, x="recommendation", y="samples")
+                st.dataframe(recommendation_stats, hide_index=True, width="stretch")
+
+    with st.container(border=True):
+        st.subheader("second_round_manifest.jsonl", anchor=False)
+        if manifest_df.empty:
+            st.caption("未找到二轮处理清单。")
+        else:
+            display_cols = [
+                column
+                for column in [
+                    "sample_id",
+                    "error_type",
+                    "error_reason",
+                    "final_quality_label",
+                    "human_review_label",
+                    "clip_score",
+                    "recommendation",
+                    "recommendation_reason",
+                ]
+                if column in manifest_df.columns
+            ]
+            st.dataframe(
+                manifest_df[display_cols].head(300),
+                hide_index=True,
+                width="stretch",
+                column_config={
+                    "sample_id": st.column_config.TextColumn("sample_id", pinned=True),
+                    "error_reason": st.column_config.TextColumn("错误原因", width="large"),
+                    "recommendation_reason": st.column_config.TextColumn("建议原因", width="large"),
+                    "clip_score": st.column_config.NumberColumn("CLIP score", format="%.4f"),
+                },
+            )
+
+    if report_text:
+        with st.expander("查看 evaluation_feedback_report.md", expanded=False):
+            st.markdown(report_text)
+
+
 with st.sidebar:
     st.header("数据源")
     dataset_version = st.selectbox(
@@ -388,6 +505,14 @@ with st.sidebar:
     video_manifest_path = Path(st.text_input("视频 manifest", preset["video_manifest"], key=f"video-{dataset_version}"))
     frame_manifest_path = Path(st.text_input("帧级 manifest", preset["frame_manifest"], key=f"frame-{dataset_version}"))
     export_dir = Path(st.text_input("导出目录", preset["export_dir"], key=f"export-{dataset_version}"))
+    runs_dir = Path(st.text_input("Runs 目录", "outputs/runs", key=f"runs-{dataset_version}"))
+    feedback_dir = Path(
+        st.text_input(
+            "Feedback Loop 目录",
+            "data/processed/evaluation_feedback",
+            key=f"feedback-{dataset_version}",
+        )
+    )
     st.caption("保留手动路径配置；选择预设版本会填充对应默认路径。")
 
 _render_header(metadata_path)
@@ -406,10 +531,14 @@ if not metadata_path.exists():
 df = _load_metadata(str(metadata_path))
 video_df = _load_jsonl(str(video_manifest_path))
 frame_df = _load_jsonl(str(frame_manifest_path))
+runs_df = _load_run_rows(str(runs_dir))
+feedback_artifacts = _load_feedback_artifacts(str(feedback_dir))
 
 _render_kpis(df, export_dir)
 
-overview_tab, diagnosis_tab, review_tab, video_tab, assets_tab = st.tabs(["总览", "诊断", "复核", "视频", "资产"])
+overview_tab, diagnosis_tab, review_tab, video_tab, assets_tab, run_center_tab, feedback_loop_tab = st.tabs(
+    ["总览", "诊断", "复核", "视频", "资产", "Run Center", "Feedback Loop"]
+)
 
 with overview_tab:
     _render_overview(df, export_dir)
@@ -421,3 +550,7 @@ with video_tab:
     _render_video(video_df, frame_df)
 with assets_tab:
     _render_assets(df, export_dir)
+with run_center_tab:
+    _render_run_center(runs_df, runs_dir)
+with feedback_loop_tab:
+    _render_feedback_loop(feedback_artifacts, feedback_dir)

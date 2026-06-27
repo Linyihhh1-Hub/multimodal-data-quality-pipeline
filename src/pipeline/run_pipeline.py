@@ -1,7 +1,9 @@
 from __future__ import annotations
 
+from copy import deepcopy
 from dataclasses import dataclass
 from pathlib import Path
+from typing import Any
 
 import pandas as pd
 
@@ -15,6 +17,7 @@ from src.quality.duplicate_detector import annotate_duplicate_hashes, compute_pe
 from src.quality.quality_scorer import combine_quality
 from src.quality.text_quality import assess_caption
 from src.storage.metadata_store import write_metadata
+from src.utils.run_manager import RunManager
 
 
 @dataclass
@@ -31,6 +34,9 @@ class PipelineResult:
     review_samples: int
     rejected_samples: int
     scorer_backend: str
+    run_id: str | None = None
+    run_dir: Path | None = None
+    run_artifacts: dict[str, Path] | None = None
 
 
 def _resolve_image_path(raw_data_dir: Path, image_path: str) -> Path:
@@ -50,6 +56,10 @@ def run_pipeline(
     quality_rules_path: str | Path | None = None,
     model_cache_dir: str | Path | None = "data/models/huggingface",
     clip_batch_size: int = 16,
+    run_id: str | None = None,
+    runs_dir: str | Path = "outputs/runs",
+    archive_run: bool = True,
+    config_snapshot: dict[str, Any] | None = None,
 ) -> PipelineResult:
     raw_dir = Path(raw_data_dir)
     processed = Path(processed_dir)
@@ -140,6 +150,59 @@ def run_pipeline(
     train_sft_jsonl = export_sft_jsonl(scored, exports / "train_sft.jsonl", "train")
     review_jsonl = export_status_jsonl(scored, exports / "review_samples.jsonl", "review")
     rejected_jsonl = export_status_jsonl(scored, exports / "rejected_samples.jsonl", "rejected")
+    run_artifacts: dict[str, Path] | None = None
+    final_run_id: str | None = None
+    run_dir: Path | None = None
+    if archive_run:
+        manager = RunManager(runs_dir=runs_dir, run_id=run_id)
+        final_run_id = manager.run_id
+        run_dir = manager.run_dir
+        snapshot = deepcopy(config_snapshot) if config_snapshot is not None else {
+            "data": {
+                "manifest_path": str(manifest_path),
+                "raw_data_dir": str(raw_data_dir),
+                "processed_dir": str(processed_dir),
+                "export_dir": str(export_dir),
+            },
+            "pipeline": {
+                "version": version,
+                "use_clip": use_clip,
+                "quality_rules_path": str(quality_rules_path) if quality_rules_path is not None else None,
+                "model_cache_dir": str(model_cache_dir) if model_cache_dir is not None else None,
+                "clip_batch_size": clip_batch_size,
+            },
+            "runs": {
+                "run_id": manager.run_id,
+                "runs_dir": str(runs_dir),
+            },
+        }
+        snapshot.setdefault("runs", {})
+        snapshot["runs"]["run_id"] = manager.run_id
+        snapshot["runs"]["runs_dir"] = str(runs_dir)
+        run_artifacts = manager.archive(
+            scored=scored,
+            config=snapshot,
+            input_paths={
+                "manifest": manifest_path,
+                "raw_data_dir": raw_data_dir,
+                "quality_rules": quality_rules_path,
+            },
+            output_paths={
+                "metadata": metadata_path,
+                "train_jsonl": train_jsonl,
+                "val_jsonl": val_jsonl,
+                "eval_jsonl": eval_jsonl,
+                "train_sft_jsonl": train_sft_jsonl,
+                "review_jsonl": review_jsonl,
+                "rejected_jsonl": rejected_jsonl,
+            },
+            quality_rules={
+                "image": rules.image,
+                "text": rules.text,
+                "score": rules.score,
+            },
+            scorer_backend=scorer.backend,
+        )
 
     return PipelineResult(
         metadata_path=metadata_path,
@@ -154,6 +217,9 @@ def run_pipeline(
         review_samples=int((scored["filter_status"] == "review").sum()),
         rejected_samples=int((scored["filter_status"] == "rejected").sum()),
         scorer_backend=scorer.backend,
+        run_id=final_run_id,
+        run_dir=run_dir,
+        run_artifacts=run_artifacts,
     )
 
 
@@ -170,6 +236,9 @@ def main() -> None:
     parser.add_argument("--quality-rules", default=None)
     parser.add_argument("--model-cache-dir", default="data/models/huggingface")
     parser.add_argument("--clip-batch-size", type=int, default=16)
+    parser.add_argument("--run-id", default=None)
+    parser.add_argument("--runs-dir", default="outputs/runs")
+    parser.add_argument("--no-run-archive", action="store_true")
     args = parser.parse_args()
 
     result = run_pipeline(
@@ -182,6 +251,9 @@ def main() -> None:
         quality_rules_path=args.quality_rules,
         model_cache_dir=args.model_cache_dir,
         clip_batch_size=args.clip_batch_size,
+        run_id=args.run_id,
+        runs_dir=args.runs_dir,
+        archive_run=not args.no_run_archive,
     )
     print(result)
 
