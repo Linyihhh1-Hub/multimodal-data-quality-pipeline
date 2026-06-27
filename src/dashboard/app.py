@@ -381,7 +381,7 @@ with st.sidebar:
     dataset_version = st.selectbox(
         "数据集版本选择",
         list(DATASET_PRESETS.keys()),
-        index=0,
+        index=2,
     )
     preset = DATASET_PRESETS[dataset_version]
     metadata_path = Path(st.text_input("元数据路径", preset["metadata"], key=f"metadata-{dataset_version}"))
