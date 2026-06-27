@@ -1,0 +1,3 @@
+{"sample_id":"demo_demo_2","decision":"accepted","reviewer":"human_001","reason":"caption matches image after manual review","review_time":"2026-06-26T10:00:00"}
+{"sample_id":"demo_demo_3","decision":"rejected","reviewer":"human_001","reason":"caption does not match image quality target","review_time":"2026-06-26T10:01:00"}
+{"sample_id":"demo_demo_4","decision":"keep_review","reviewer":"human_001","reason":"ambiguous sample needs second review","review_time":"2026-06-26T10:02:00"}
